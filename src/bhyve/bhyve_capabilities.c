@@ -327,6 +327,17 @@ bhyveProbeCapsVirtio9p(unsigned int *caps, char *binary)
 }
 
 
+static int
+bhyveProbeCapsVirtioSCSI(unsigned int *caps, char *binary)
+{
+    return bhyveProbeCapsDeviceHelper(caps, binary,
+                                      "-s",
+                                      "0,virtio-scsi",
+                                      "pci slot 0:0: unknown device \"virtio-scsi\"",
+                                      BHYVE_CAP_VIRTIO_SCSI);
+}
+
+
 int
 virBhyveProbeCaps(unsigned int *caps)
 {
@@ -362,6 +373,9 @@ virBhyveProbeCaps(unsigned int *caps)
         goto out;
 
     if ((ret = bhyveProbeCapsVirtio9p(caps, binary)))
+        goto out;
+
+    if ((ret = bhyveProbeCapsVirtioSCSI(caps, binary)))
         goto out;
 
  out:

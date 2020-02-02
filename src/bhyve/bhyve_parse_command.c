@@ -457,6 +457,82 @@ bhyveParsePCIDisk(virDomainDef *def,
 }
 
 static int
+bhyveParsePCIPassthru(virDomainDef *def,
+                      unsigned vmbus,
+                      unsigned vmslot,
+                      unsigned vmfunction,
+                      const char *config)
+{
+    /* -s bus:slot:function,passthru,BUS/SLOT/FUNCTION */
+    virDomainHostdevDef *dev = NULL;
+    virDomainHostdevSubsysPCI *pcisrc = NULL;
+    unsigned hostbus, hostslot, hostfunction;
+
+    hostbus = hostslot = hostfunction = 0;
+    if (sscanf(config, "%u/%u/%u", &hostbus, &hostslot, &hostfunction) != 3)
+        return -1;
+
+    if ((dev = virDomainHostdevDefNew()) == NULL)
+        return -1;
+    dev->info->type = VIR_DOMAIN_DEVICE_ADDRESS_TYPE_PCI;
+    dev->info->addr.pci.bus = vmbus;
+    dev->info->addr.pci.slot = vmslot;
+    dev->info->addr.pci.function = vmfunction;
+    dev->mode = VIR_DOMAIN_HOSTDEV_MODE_SUBSYS;
+    dev->source.subsys.type = VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI;
+    pcisrc = &dev->source.subsys.u.pci;
+    pcisrc->driver.name = VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_VMM;
+    pcisrc->addr.bus = hostbus;
+    pcisrc->addr.slot = hostslot;
+    pcisrc->addr.function = hostfunction;
+
+    VIR_APPEND_ELEMENT(def->hostdevs, def->nhostdevs, dev);
+
+    return 0;
+}
+
+static int
+bhyveParseSCSICTL(virDomainDef *def,
+                  unsigned bus,
+                  unsigned slot,
+                  unsigned function,
+                  const char *config)
+{
+    /* -s slot,virtio-scsi,[dev=]/dev/cam/ctlPP.VP[,scsi-device-options] */
+    virDomainHostdevDef *dev = NULL;
+    virDomainHostdevSubsysSCSICTL *ctlsrc = NULL;
+    unsigned pp, vp;
+
+    /* Skip [dev=] if present. */
+    if (STRPREFIX(config, "dev="))
+        config = strchr(config, '=') + 1;
+
+    pp = vp = 0;
+    if (sscanf(config, "/dev/cam/ctl%u.%u", &pp, &vp) != 2)
+        return -1;
+
+    if ((dev = virDomainHostdevDefNew()) == NULL)
+        return -1;
+    dev->info->type = VIR_DOMAIN_DEVICE_ADDRESS_TYPE_PCI;
+    dev->info->addr.pci.bus = bus;
+    dev->info->addr.pci.slot = slot;
+    dev->info->addr.pci.function = function;
+    dev->mode = VIR_DOMAIN_HOSTDEV_MODE_SUBSYS;
+    dev->source.subsys.type = VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL;
+    ctlsrc = &dev->source.subsys.u.scsi_ctl;
+    ctlsrc->model =
+        VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_VIRTIO;
+    ctlsrc->protocol =
+        VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_IOCTL;
+    ctlsrc->pp = pp;
+    ctlsrc->vp = vp;
+
+    VIR_APPEND_ELEMENT(def->hostdevs, def->nhostdevs, dev);
+
+    return 0;
+}
+
+static int
 bhyveParsePCINet(virDomainDef *def,
                  virDomainXMLOption *xmlopt,
                  unsigned caps G_GNUC_UNUSED,
@@ -688,6 +764,8 @@ bhyveParseBhyvePCIArg(virDomainDef *def,
                           nvirtiodisk,
                           nahcidisk,
                           conf);
+    else if (STREQ(emulation, "passthru"))
+        bhyveParsePCIPassthru(def, bus, slot, function, conf);
     else if (STREQ(emulation, "virtio-blk"))
         bhyveParsePCIDisk(def, caps, bus, slot, function,
                           VIR_DOMAIN_DISK_BUS_VIRTIO,
@@ -698,6 +776,8 @@ bhyveParseBhyvePCIArg(virDomainDef *def,
     else if (STREQ(emulation, "virtio-net"))
         bhyveParsePCINet(def, xmlopt, caps, bus, slot, function,
                          VIR_DOMAIN_NET_MODEL_VIRTIO, conf);
+    else if (STREQ(emulation, "virtio-scsi"))
+        bhyveParseSCSICTL(def, bus, slot, function, conf);
     else if (STREQ(emulation, "e1000"))
         bhyveParsePCINet(def, xmlopt, caps, bus, slot, function,
                          VIR_DOMAIN_NET_MODEL_E1000, conf);

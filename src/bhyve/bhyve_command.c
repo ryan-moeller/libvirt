@@ -384,6 +384,135 @@ bhyveBuildControllerArgStr(const virDomainDef *def,
 }
 
 static int
+bhyveBuildHostdevSubsysPCIArgStr(const virDomainDef *def,
+                                 virDomainHostdevDef *dev,
+                                 virCommand *cmd)
+{
+    virDomainHostdevSubsysPCI *pcisrc = &dev->source.subsys.u.pci;
+
+    switch (pcisrc->driver.name) {
+    case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_DEFAULT:
+        pcisrc->driver.name = VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_VMM;
+        G_GNUC_FALLTHROUGH;
+    case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_VMM:
+        if (!def->mem.locked) {
+            /* TODO: maybe just configure it automatically? */
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("guest memory must be locked (wired) for PCI passthrough"));
+            return -1;
+        }
+        virCommandAddArg(cmd, "-s");
+        virCommandAddArgFormat(cmd, "%u:%u:%u,passthru,%u/%u/%u",
+                               dev->info->addr.pci.bus,
+                               dev->info->addr.pci.slot,
+                               dev->info->addr.pci.function,
+                               pcisrc->addr.bus,
+                               pcisrc->addr.slot,
+                               pcisrc->addr.function);
+        break;
+    case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_KVM:
+    case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_VFIO:
+    case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_XEN:
+    case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_LAST:
+    default:
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                       _("unsupported hostdev pci driver name"));
+        return -1;
+    }
+    return 0;
+}
+
+static int
+bhyveBuildHostdevSubsysSCSICTLArgStr(const virDomainDef *def G_GNUC_UNUSED,
+                                     virDomainHostdevDef *dev,
+                                     struct _bhyveConn *driver,
+                                     virCommand *cmd)
+{
+    virDomainHostdevSubsysSCSICTL *ctlsrc = &dev->source.subsys.u.scsi_ctl;
+
+    if (!(bhyveDriverGetBhyveCaps(driver) & BHYVE_CAP_VIRTIO_SCSI)) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                       _("Installed bhyve binary does not support defining virtio-scsi devices"));
+        return -1;
+    }
+    if (ctlsrc->protocol !=
+        VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_IOCTL) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                       _("unsupported hostdev scsi_ctl protocol"));
+        return -1;
+    }
+    switch (ctlsrc->model) {
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_DEFAULT:
+        ctlsrc->model =
+            VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_VIRTIO;
+        G_GNUC_FALLTHROUGH;
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_VIRTIO:
+        virCommandAddArg(cmd, "-s");
+        virCommandAddArgFormat(cmd, "%u:%u,virtio-scsi,/dev/cam/ctl%u.%u",
+                               dev->info->addr.pci.slot,
+                               dev->info->addr.pci.function,
+                               ctlsrc->pp, ctlsrc->vp);
+        break;
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_LAST:
+    default:
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                       _("unsupported hostdev scsi_ctl model"));
+        return -1;
+    }
+    return 0;
+}
+
+static int
+bhyveBuildHostdevSubsysArgStr(const virDomainDef *def,
+                              virDomainHostdevDef *dev,
+                              struct _bhyveConn *driver,
+                              virCommand *cmd)
+{
+    switch (dev->source.subsys.type) {
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI:
+        if (bhyveBuildHostdevSubsysPCIArgStr(def, dev, cmd) < 0)
+            return -1;
+        break;
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
+        if (bhyveBuildHostdevSubsysSCSICTLArgStr(def, dev, driver, cmd) < 0)
+            return -1;
+        break;
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_USB:
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI:
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST:
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV:
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_LAST:
+    default:
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                       _("unsupported hostdev subsystem type"));
+        return -1;
+    }
+    return 0;
+}
+
+static int
+bhyveBuildHostdevArgStr(const virDomainDef *def,
+                        virDomainHostdevDef *dev,
+                        struct _bhyveConn *driver,
+                        virCommand *cmd)
+{
+    switch (dev->mode) {
+    case VIR_DOMAIN_HOSTDEV_MODE_SUBSYS:
+        if (bhyveBuildHostdevSubsysArgStr(def, dev, driver, cmd) < 0)
+            return -1;
+        break;
+    case VIR_DOMAIN_HOSTDEV_MODE_CAPABILITIES:
+    case VIR_DOMAIN_HOSTDEV_MODE_LAST:
+    default:
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                       _("unsupported hostdev device mode"));
+        return -1;
+    }
+    return 0;
+}
+
+
+static int
 bhyveBuildGraphicsArgStr(const virDomainDef *def,
                          virDomainGraphicsDef *graphics,
                          virDomainVideoDef *video,
@@ -777,6 +906,10 @@ virBhyveProcessBuildBhyveCmd(struct _bhyveConn *driver, virDomainDef *def,
     }
     for (i = 0; i < def->ndisks; i++) {
         if (bhyveBuildDiskArgStr(def, def->disks[i], cmd) < 0)
+            return NULL;
+    }
+    for (i = 0; i < def->nhostdevs; i++) {
+        if (bhyveBuildHostdevArgStr(def, def->hostdevs[i], driver, cmd) < 0)
             return NULL;
     }
 

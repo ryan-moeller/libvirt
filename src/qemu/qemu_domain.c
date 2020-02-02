@@ -10824,6 +10824,7 @@ qemuDomainGetHostdevPath(virDomainHostdevDef *dev,
 
             perm = VIR_CGROUP_DEVICE_RW;
             break;
+        case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_LAST:
             break;
         }

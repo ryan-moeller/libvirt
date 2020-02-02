@@ -2514,6 +2514,11 @@ qemuValidateDomainDeviceDefHostdev(const virDomainHostdevDef *hostdev,
             }
             break;
 
+        case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("SCSI CTL hostdevs are not supported by qemu"));
+            return -1;
+
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST:
             if (hostdev->info->bootIndex) {
                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",

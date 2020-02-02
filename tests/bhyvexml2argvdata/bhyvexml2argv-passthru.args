@@ -1,0 +1,11 @@
+bhyve \
+-c 1 \
+-m 214 \
+-S \
+-H \
+-P \
+-s 0:0,hostbridge \
+-l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE.fd \
+-s 1:0,lpc \
+-s 0:3:0,passthru,5/0/7 \
+bhyve

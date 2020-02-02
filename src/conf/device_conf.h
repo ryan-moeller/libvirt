@@ -34,9 +34,10 @@
 
 /* the backend driver used for PCI hostdev devices */
 typedef enum {
-    VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_DEFAULT = 0, /* detect automatically, prefer VFIO */
+    VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_DEFAULT = 0, /* detect automatically, prefer VFIO or VMM */
     VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_KVM,    /* force legacy kvm style */
     VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_VFIO,   /* force vfio */
+    VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_VMM,    /* force vmm (FreeBSD bhyve) */
     VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_XEN,    /* force legacy xen style, use pciback */
 
     VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_LAST

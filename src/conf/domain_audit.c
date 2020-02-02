@@ -342,6 +342,7 @@ virDomainAuditHostdev(virDomainObj *vm, virDomainHostdevDef *hostdev,
     virDomainHostdevSubsysUSB *usbsrc = &hostdev->source.subsys.u.usb;
     virDomainHostdevSubsysPCI *pcisrc = &hostdev->source.subsys.u.pci;
     virDomainHostdevSubsysSCSI *scsisrc = &hostdev->source.subsys.u.scsi;
+    virDomainHostdevSubsysSCSICTL *ctlsrc = &hostdev->source.subsys.u.scsi_ctl;
     virDomainHostdevSubsysSCSIVHost *hostsrc = &hostdev->source.subsys.u.scsi_host;
     virDomainHostdevSubsysMediatedDev *mdevsrc = &hostdev->source.subsys.u.mdev;
 
@@ -377,6 +378,10 @@ virDomainAuditHostdev(virDomainObj *vm, virDomainHostdevDef *hostdev,
             }
             break;
         }
+        case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
+            address = g_strdup_printf("/dev/cam/ctl%u.%u",
+                                      ctlsrc->pp, ctlsrc->vp);
+            break;
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST:
             address = g_strdup(hostsrc->wwpn);
             break;

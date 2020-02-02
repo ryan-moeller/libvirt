@@ -34,6 +34,7 @@ VIR_ENUM_IMPL(virDeviceHostdevPCIDriverName,
               "default",
               "kvm",
               "vfio",
+              "vmm",
               "xen",
 );
 

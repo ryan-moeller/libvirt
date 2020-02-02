@@ -4776,6 +4776,7 @@ qemuBuildPCIHostdevDevProps(const virDomainDef *def,
 
     case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_KVM:
     case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_DEFAULT:
+    case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_VMM:
     case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_XEN:
     case VIR_DEVICE_HOSTDEV_PCI_DRIVER_NAME_LAST:
         virReportError(VIR_ERR_INTERNAL_ERROR,
@@ -5259,6 +5260,7 @@ qemuBuildHostdevCommandLine(virCommand *cmd,
                 return -1;
             break;
 
+        case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_LAST:
             break;
         }

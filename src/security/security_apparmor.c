@@ -927,6 +927,7 @@ AppArmorSetSecurityHostdevLabel(virSecurityManager *mgr,
         break;
     }
 
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
     case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_LAST:
         ret = 0;
         break;

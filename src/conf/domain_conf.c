@@ -1054,17 +1054,16 @@ VIR_ENUM_IMPL(virDomainHostdevSubsys,
               "usb",
               "pci",
               "scsi",
+              "scsi_ctl",
               "scsi_host",
               "mdev",
 );
-
 
 VIR_ENUM_IMPL(virDomainHostdevSubsysSCSIProtocol,
               VIR_DOMAIN_HOSTDEV_SCSI_PROTOCOL_TYPE_LAST,
               "adapter",
               "iscsi",
 );
-
 
 VIR_ENUM_IMPL(virDomainHostdevPCIOrigstate,
               VIR_DOMAIN_HOSTDEV_PCI_ORIGSTATE_LAST,
@@ -1079,6 +1078,18 @@ VIR_ENUM_IMPL(virDomainHostdevSubsysUSBGuestReset,
               "off",
               "uninitialized",
               "on",
+);
+
+VIR_ENUM_IMPL(virDomainHostdevSubsysSCSICTLProtocol,
+              VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_LAST,
+              "none",
+              "ioctl",
+);
+
+VIR_ENUM_IMPL(virDomainHostdevSubsysSCSICTLModel,
+              VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_LAST,
+              "default",
+              "virtio",
 );
 
 VIR_ENUM_IMPL(virDomainHostdevSubsysSCSIHostProtocol,
@@ -2666,6 +2677,7 @@ virDomainHostdevDefClear(virDomainHostdevDef *def)
             g_clear_pointer(&def->source.subsys.u.pci.origstates, virBitmapFree);
             break;
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_USB:
+        case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV:
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_LAST:
             break;
@@ -6208,6 +6220,39 @@ virDomainHostdevSubsysSCSIVHostDefParseXML(xmlNodePtr sourcenode,
 }
 
 static int
+virDomainHostdevSubsysSCSICTLDefParseXML(xmlNodePtr sourcenode,
+                                         virDomainHostdevDef *def)
+{
+    virDomainHostdevSubsysSCSICTL *ctlsrc = &def->source.subsys.u.scsi_ctl;
+
+    if (virXMLPropEnum(sourcenode, "protocol",
+                       virDomainHostdevSubsysSCSICTLProtocolTypeFromString,
+                       VIR_XML_PROP_REQUIRED,
+                       &ctlsrc->protocol) < 0) {
+        return -1;
+    }
+
+    switch (ctlsrc->protocol) {
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_IOCTL:
+        if (virXMLPropUInt(sourcenode, "pp", 0, VIR_XML_PROP_REQUIRED,
+                           &ctlsrc->pp) <= 0)
+            return -1;
+        if (virXMLPropUInt(sourcenode, "vp", 0, VIR_XML_PROP_REQUIRED,
+                           &ctlsrc->vp) <= 0)
+            return -1;
+        break;
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_NONE:
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_LAST:
+        virReportError(VIR_ERR_XML_ERROR,
+                       _("Invalid hostdev protocol '%1$s'"),
+                       virDomainHostdevSubsysSCSICTLProtocolTypeToString(ctlsrc->protocol));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int
 virDomainHostdevSubsysMediatedDevDefParseXML(virDomainHostdevDef *def,
                                              xmlXPathContextPtr ctxt)
 {
@@ -6251,6 +6296,7 @@ virDomainHostdevDefParseXMLSubsys(xmlNodePtr node,
     xmlNodePtr driver_node = NULL;
     virDomainHostdevSubsysPCI *pcisrc = &def->source.subsys.u.pci;
     virDomainHostdevSubsysSCSI *scsisrc = &def->source.subsys.u.scsi;
+    virDomainHostdevSubsysSCSICTL *scsictlsrc = &def->source.subsys.u.scsi_ctl;
     virDomainHostdevSubsysSCSIVHost *scsihostsrc = &def->source.subsys.u.scsi_host;
     virDomainHostdevSubsysMediatedDev *mdevsrc = &def->source.subsys.u.mdev;
     virTristateBool managed;
@@ -6333,6 +6379,7 @@ virDomainHostdevDefParseXMLSubsys(xmlNodePtr node,
     }
 
     if (def->source.subsys.type != VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV &&
+        def->source.subsys.type != VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL &&
         def->source.subsys.type != VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST) {
         if (model) {
             virReportError(VIR_ERR_XML_ERROR,
@@ -6347,6 +6394,12 @@ virDomainHostdevDefParseXMLSubsys(xmlNodePtr node,
                            virDomainHostdevSubsysSCSIVHostModelTypeFromString,
                            VIR_XML_PROP_NONE,
                            &scsihostsrc->model) < 0)
+            return -1;
+    } else if (def->source.subsys.type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL) {
+        if (virXMLPropEnum(node, "model",
+                           virDomainHostdevSubsysSCSICTLModelTypeFromString,
+                           VIR_XML_PROP_NONE,
+                           &scsictlsrc->model) < 0)
             return -1;
     } else if (def->source.subsys.type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV) {
         if (virXMLPropEnum(node, "model",
@@ -6397,10 +6450,16 @@ virDomainHostdevDefParseXMLSubsys(xmlNodePtr node,
             return -1;
         break;
 
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
+        if (virDomainHostdevSubsysSCSICTLDefParseXML(sourcenode, def) < 0)
+            return -1;
+        break;
+
     case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST:
         if (virDomainHostdevSubsysSCSIVHostDefParseXML(sourcenode, def) < 0)
             return -1;
         break;
+
     case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV:
         if (virDomainHostdevSubsysMediatedDevDefParseXML(def, ctxt) < 0)
             return -1;
@@ -13244,6 +13303,7 @@ virDomainHostdevDefParseXML(virDomainXMLOption *xmlopt,
 
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_USB:
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI:
+        case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST:
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV:
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_LAST:
@@ -14471,6 +14531,13 @@ virDomainHostdevMatchSubsys(virDomainHostdevDef *a,
             return virDomainHostdevMatchSubsysSCSIiSCSI(a, b);
         else
             return virDomainHostdevMatchSubsysSCSIHost(a, b);
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
+        return ((a->source.subsys.u.scsi_ctl.protocol ==
+                 b->source.subsys.u.scsi_ctl.protocol) &&
+                (a->source.subsys.u.scsi_ctl.pp ==
+                 b->source.subsys.u.scsi_ctl.pp) &&
+                (a->source.subsys.u.scsi_ctl.vp ==
+                 b->source.subsys.u.scsi_ctl.vp)) ? 1 : 0;
     case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST:
         if (a->source.subsys.u.scsi_host.protocol !=
             b->source.subsys.u.scsi_host.protocol)
@@ -23820,6 +23887,21 @@ virDomainHostdevDefFormatSubsysSCSI(virBuffer *buf,
 
 
 static void
+virDomainHostdevDefFormatSubsysSCSICTL(virBuffer *buf,
+                                       virDomainHostdevDef *def)
+{
+    g_auto(virBuffer) sourceAttrBuf = VIR_BUFFER_INITIALIZER;
+    virDomainHostdevSubsysSCSICTL *ctlsrc = &def->source.subsys.u.scsi_ctl;
+
+    virBufferAsprintf(&sourceAttrBuf, " protocol='%s' pp='%u' vp='%u'",
+                      virDomainHostdevSubsysSCSICTLProtocolTypeToString(ctlsrc->protocol),
+                      ctlsrc->pp, ctlsrc->vp);
+
+    virXMLFormatElement(buf, "source", &sourceAttrBuf, NULL);
+}
+
+
+static void
 virDomainHostdevDefFormatSubsysSCSIHost(virBuffer *buf,
                                         virDomainHostdevDef *def)
 {
@@ -23864,6 +23946,10 @@ virDomainHostdevDefFormatSubsys(virBuffer *buf,
 
     case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI:
         return virDomainHostdevDefFormatSubsysSCSI(buf, def, flags, includeTypeInAddr, xmlopt);
+
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
+        virDomainHostdevDefFormatSubsysSCSICTL(buf, def);
+        return 0;
 
     case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST:
         virDomainHostdevDefFormatSubsysSCSIHost(buf, def);
@@ -26506,6 +26592,7 @@ virDomainHostdevDefFormat(virBuffer *buf,
     virDomainHostdevSubsysSCSI *scsisrc = &def->source.subsys.u.scsi;
     virDomainHostdevSubsysMediatedDev *mdevsrc = &def->source.subsys.u.mdev;
     virDomainHostdevSubsysPCI *pcisrc = &def->source.subsys.u.pci;
+    virDomainHostdevSubsysSCSICTL *scsictlsrc = &def->source.subsys.u.scsi_ctl;
     virDomainHostdevSubsysSCSIVHost *scsihostsrc = &def->source.subsys.u.scsi_host;
     const char *type;
 
@@ -26556,6 +26643,12 @@ virDomainHostdevDefFormat(virBuffer *buf,
             scsisrc->rawio) {
             virBufferAsprintf(buf, " rawio='%s'",
                               virTristateBoolTypeToString(scsisrc->rawio));
+        }
+
+        if (def->source.subsys.type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL &&
+            scsictlsrc->model) {
+            virBufferAsprintf(buf, " model='%s'",
+                              virDomainHostdevSubsysSCSICTLModelTypeToString(scsictlsrc->model));
         }
 
         if (def->source.subsys.type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST &&
