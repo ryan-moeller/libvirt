@@ -1630,6 +1630,7 @@ qemuDomainAttachHostPCIDevice(virQEMUDriverPtr driver,
     case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_KVM:
         break;
 
+    case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_VMM:
     case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_XEN:
     case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_TYPE_LAST:
         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
@@ -4592,6 +4593,7 @@ qemuDomainRemoveHostDevice(virQEMUDriverPtr driver,
     case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV:
         qemuDomainRemoveMediatedDevice(driver, vm, hostdev);
         break;
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL:
     case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_LAST:
         break;
     }

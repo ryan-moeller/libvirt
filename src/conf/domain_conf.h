@@ -198,6 +198,7 @@ typedef enum {
     VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_USB,
     VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI,
     VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI,
+    VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL,
     VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST,
     VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV,
 
@@ -206,10 +207,11 @@ typedef enum {
 
 /* the backend driver used for PCI hostdev devices */
 typedef enum {
-    VIR_DOMAIN_HOSTDEV_PCI_BACKEND_DEFAULT, /* detect automatically, prefer VFIO */
+    VIR_DOMAIN_HOSTDEV_PCI_BACKEND_DEFAULT, /* detect automatically, prefer VFIO or VMM */
     VIR_DOMAIN_HOSTDEV_PCI_BACKEND_KVM,    /* force legacy kvm style */
     VIR_DOMAIN_HOSTDEV_PCI_BACKEND_VFIO,   /* force vfio */
     VIR_DOMAIN_HOSTDEV_PCI_BACKEND_XEN,    /* force legacy xen style, use pciback */
+    VIR_DOMAIN_HOSTDEV_PCI_BACKEND_VMM,    /* force vmm (FreeBSD bhyve) */
 
     VIR_DOMAIN_HOSTDEV_PCI_BACKEND_TYPE_LAST
 } virDomainHostdevSubsysPCIBackendType;
@@ -262,6 +264,30 @@ struct _virDomainHostdevSubsysSCSI {
     } u;
 };
 
+typedef enum {
+    VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_NONE,
+    VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_IOCTL,
+
+    VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_LAST,
+} virDomainHostdevSubsysSCSICTLProtocolType;
+
+VIR_ENUM_DECL(virDomainHostdevSubsysSCSICTLProtocol);
+
+typedef enum {
+    VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_DEFAULT,
+    VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_VIRTIO,
+
+    VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_LAST,
+} virDomainHostdevSubsysSCSICTLModelType;
+
+VIR_ENUM_DECL(virDomainHostdevSubsysSCSICTLModel);
+
+struct _virDomainHostdevSubsysSCSICTL {
+    int protocol; /* enum virDomainHostdevSubsysSCSICTLProtocolType */
+    unsigned pp, vp;
+    int model; /* enum virDomainHostdevSubsysSCSICTLModelType */
+};
+
 struct _virDomainHostdevSubsysMediatedDev {
     int model;                          /* enum virMediatedDeviceModelType */
     int display; /* virTristateSwitch */
@@ -302,6 +328,7 @@ struct _virDomainHostdevSubsys {
         virDomainHostdevSubsysPCI pci;
         virDomainHostdevSubsysSCSI scsi;
         virDomainHostdevSubsysSCSIVHost scsi_host;
+        virDomainHostdevSubsysSCSICTL scsi_ctl;
         virDomainHostdevSubsysMediatedDev mdev;
     } u;
 };

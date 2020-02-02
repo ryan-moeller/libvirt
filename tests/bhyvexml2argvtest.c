@@ -167,7 +167,8 @@ mymain(void)
                        BHYVE_CAP_NET_E1000 | BHYVE_CAP_LPC_BOOTROM | \
                        BHYVE_CAP_FBUF | BHYVE_CAP_XHCI | \
                        BHYVE_CAP_CPUTOPOLOGY | BHYVE_CAP_SOUND_HDA | \
-                       BHYVE_CAP_VNC_PASSWORD | BHYVE_CAP_VIRTIO_9P;
+                       BHYVE_CAP_VNC_PASSWORD | BHYVE_CAP_VIRTIO_9P | \
+                       BHYVE_CAP_VIRTIOSCSI;
 
     DO_TEST("base");
     DO_TEST("wired");
@@ -216,6 +217,8 @@ mymain(void)
     DO_TEST_FAILURE("fs-9p-unsupported-accessmode");
     driver.bhyvecaps &= ~BHYVE_CAP_VIRTIO_9P;
     DO_TEST_FAILURE("fs-9p");
+    DO_TEST("virtio-scsi");
+    DO_TEST("passthru");
 
     /* Address allocation tests */
     DO_TEST("addr-single-sata-disk");
