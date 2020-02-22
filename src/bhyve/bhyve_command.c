@@ -1177,11 +1177,8 @@ virBhyveGetBootDisk(virDomainDef *def)
     virDomainDiskDef *match = NULL;
     int boot_dev = -1;
 
-    if (def->ndisks < 1) {
-        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
-                       _("Domain should have at least one disk defined"));
+    if (def->ndisks == 0)
         return NULL;
-    }
 
     if (def->os.nBootDevs > 1) {
         virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
