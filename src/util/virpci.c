@@ -1384,11 +1384,11 @@ virPCIDeviceAddressIsValid(virPCIDeviceAddressPtr addr,
                            addr->slot);
         return false;
     }
-    if (addr->function > 7) {
+    if (addr->function > 255) {
         if (report)
             virReportError(VIR_ERR_XML_ERROR,
                            _("Invalid PCI address function=0x%x, "
-                             "must be <= 7"),
+                             "must be <= 255"),
                            addr->function);
         return false;
     }

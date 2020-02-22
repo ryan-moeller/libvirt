@@ -7,5 +7,5 @@
 -P \
 -s 0:0,hostbridge \
 -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE-devel.fd \
--s 0:3:0,passthru,5/0/7 \
+-s 0:3:0,passthru,5/0/9 \
 -s 1,lpc bhyve

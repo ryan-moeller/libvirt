@@ -360,15 +360,7 @@
     </choice>
   </define>
   <define name="pciFunc">
-    <choice>
-      <data type="string">
-        <param name="pattern">(0x)?[0-7]</param>
-      </data>
-      <data type="int">
-        <param name="minInclusive">0</param>
-        <param name="maxInclusive">7</param>
-      </data>
-    </choice>
+    <ref name="uint8"/>
   </define>
 
   <define name="wwn">
