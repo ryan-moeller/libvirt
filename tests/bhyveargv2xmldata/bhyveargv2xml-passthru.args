@@ -5,4 +5,4 @@
 -P \
 -S \
 -s 0:0,hostbridge \
--s 0:1:0,passthru,5/0/7 bhyve
+-s 0:1:0,passthru,5/0/9 bhyve

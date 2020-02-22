@@ -1796,10 +1796,10 @@ virPCIDeviceAddressIsValid(virPCIDeviceAddress *addr,
                            addr->slot);
         return false;
     }
-    if (addr->function > 7) {
+    if (addr->function > 0xFF) {
         if (report)
             virReportError(VIR_ERR_XML_ERROR,
-                           _("Invalid PCI address function=0x%1$x, must be <= 7"),
+                           _("Invalid PCI address function=0x%1$x, must be <= 0xFF"),
                            addr->function);
         return false;
     }
