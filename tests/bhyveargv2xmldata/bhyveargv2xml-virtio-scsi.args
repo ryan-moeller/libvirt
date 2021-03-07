@@ -1,0 +1,9 @@
+/usr/sbin/bhyve \
+-c 1 \
+-m 214 \
+-H \
+-P \
+-l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE-devel.fd \
+-s 0:0,hostbridge \
+-s 1:0,lpc \
+-s 2:0,virtio-scsi,/dev/cam/ctl5.0 bhyve

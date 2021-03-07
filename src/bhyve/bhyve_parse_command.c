@@ -477,6 +477,52 @@ bhyveParsePCIDisk(virDomainDefPtr def,
 }
 
 static int
+bhyveParseSCSICTL(virDomainDefPtr def,
+                  unsigned bus,
+                  unsigned slot,
+                  unsigned function,
+                  char *config)
+{
+    /* -s slot,virtio-scsi,[dev=]/dev/cam/ctlPP.VP[,scsi-device-options] */
+    virDomainHostdevDefPtr dev = NULL;
+    virDomainHostdevSubsysSCSICTLPtr ctlsrc = NULL;
+    unsigned pp, vp;
+
+    /* Skip [dev=] if present. */
+    if (STRPREFIX(config, "dev="))
+        config = strchr(config, '=') + 1;
+
+    pp = vp = 0;
+    if (sscanf(config, "/dev/cam/ctl%u.%u", &pp, &vp) != 2)
+        return -1;
+
+    if ((dev = virDomainHostdevDefNew()) == NULL)
+        return -1;
+    dev->info->type = VIR_DOMAIN_DEVICE_ADDRESS_TYPE_PCI;
+    dev->info->addr.pci.bus = bus;
+    dev->info->addr.pci.slot = slot;
+    dev->info->addr.pci.function = function;
+    dev->mode = VIR_DOMAIN_HOSTDEV_MODE_SUBSYS;
+    dev->source.subsys.type = VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL;
+    ctlsrc = &dev->source.subsys.u.scsi_ctl;
+    ctlsrc->model =
+        VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_MODEL_TYPE_VIRTIO;
+    ctlsrc->protocol =
+        VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_CTL_PROTOCOL_TYPE_IOCTL;
+    ctlsrc->pp = pp;
+    ctlsrc->vp = vp;
+
+    if (VIR_APPEND_ELEMENT(def->hostdevs, def->nhostdevs, dev) < 0)
+        goto error;
+
+    return 0;
+
+ error:
+    virDomainHostdevDefFree(dev);
+    return -1;
+}
+
+static int
 bhyveParsePCINet(virDomainDefPtr def,
                  virDomainXMLOptionPtr xmlopt,
                  unsigned caps G_GNUC_UNUSED,
@@ -725,6 +771,8 @@ bhyveParseBhyvePCIArg(virDomainDefPtr def,
     else if (STREQ(emulation, "virtio-net"))
         bhyveParsePCINet(def, xmlopt, caps, bus, slot, function,
                          VIR_DOMAIN_NET_MODEL_VIRTIO, conf);
+    else if (STREQ(emulation, "virtio-scsi"))
+        bhyveParseSCSICTL(def, bus, slot, function, conf);
     else if (STREQ(emulation, "e1000"))
         bhyveParsePCINet(def, xmlopt, caps, bus, slot, function,
                          VIR_DOMAIN_NET_MODEL_E1000, conf);
