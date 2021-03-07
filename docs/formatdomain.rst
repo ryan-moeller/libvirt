@@ -3855,7 +3855,8 @@ USB / PCI / SCSI devices
 
 USB, PCI and SCSI devices attached to the host can be passed through to the
 guest using the ``hostdev`` element. :since:`since after 0.4.4 for USB, 0.6.0
-for PCI (KVM only) and 1.0.6 for SCSI (KVM only)` :
+for PCI (KVM only), 1.0.6 for SCSI (KVM only), and 7.2.0 for SCSI CTL (bhyve
+only)` :
 
 ::
 
@@ -3931,6 +3932,17 @@ or:
 
      ...
      <devices>
+       <hostdev mode='subsystem' type='scsi_ctl' model='virtio'>
+         <source protocol='ioctl' pp='5' vp='0'/>
+       </hostdev>
+     </devices>
+
+or:
+
+::
+
+     ...
+     <devices>
        <hostdev mode='subsystem' type='scsi_host'>
          <source protocol='vhost' wwpn='naa.50014057667280d8'/>
        </hostdev>
@@ -3983,6 +3995,26 @@ or:
       capability. Valid settings are "yes" or "no". See the rawio description
       within the `disk <#elementsDisks>`__ section. If a disk lun in the domain
       already has the rawio capability, then this setting not required.
+   ``scsi_ctl``
+      :since:`since 7.2.0` On FreeBSD, the user is responsible for configuring
+      ctld to expose a target as an "ioctl" port. An example /etc/ctl.conf is :
+
+      ::
+
+         portal-group "pg0" {
+                discovery-auth-group "no-authentication"
+                listen "127.0.0.1"
+         }
+         target iqn.2021-03.com.example:target0 {
+                auth-group "no-authentication"
+                portal-group "pg0"
+                port ioctl/5/0
+                lun 0 { path "/dev/zvol/tank/lun0" }
+                lun 1 { path "/dev/zvol/tank/lun1" }
+         }
+
+      This type passes all LUNs presented by the target to the guest. The
+      ``model`` attribute must be specified as "virtio" (the default).
    ``scsi_host``
       :since:`since 2.5.0` For SCSI devices, user is responsible to make sure
       the device is not used by host. This ``type`` passes all LUNs presented by
@@ -4066,7 +4098,13 @@ or:
       :since:`Since 6.7.0`, the optional ``initiator`` sub-element controls the
       IQN of the initiator ran by the hypervisor via it's ``<iqn name='iqn...'``
       subelement.
-
+   ``scsi_ctl``
+      :since:`Since 7.2.0` , on FreeBSD, multiple LUNs behind a CAM target
+      exposed by ctld as an "ioctl" port are described by a ``protocol``
+      attribute set to ``ioctl`` and ``pp`` and ``vp`` attributes corresponding
+      to the target port as configured in /etc/ctl.conf on the host. The host
+      port configuration can also be viewed with the command ``ctladm portlist``
+      on the host, which lists the ``pp`` and ``vp`` for each available port.
    ``scsi_host``
       :since:`Since 2.5.0` , multiple LUNs behind a single SCSI HBA are
       described by a ``protocol`` attribute set to "vhost" and a ``wwpn``

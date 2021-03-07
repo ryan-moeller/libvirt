@@ -1226,6 +1226,7 @@ virSecurityDACSetHostdevLabel(virSecurityManagerPtr mgr,
     virDomainHostdevSubsysUSBPtr usbsrc = &dev->source.subsys.u.usb;
     virDomainHostdevSubsysPCIPtr pcisrc = &dev->source.subsys.u.pci;
     virDomainHostdevSubsysSCSIPtr scsisrc = &dev->source.subsys.u.scsi;
+    virDomainHostdevSubsysSCSICTLPtr ctlsrc = &dev->source.subsys.u.scsi_ctl;
     virDomainHostdevSubsysSCSIVHostPtr hostsrc = &dev->source.subsys.u.scsi_host;
     virDomainHostdevSubsysMediatedDevPtr mdevsrc = &dev->source.subsys.u.mdev;
     int ret = -1;
@@ -1307,6 +1308,19 @@ virSecurityDACSetHostdevLabel(virSecurityManagerPtr mgr,
         ret = virSCSIDeviceFileIterate(scsi,
                                        virSecurityDACSetSCSILabel,
                                        &cbdata);
+        break;
+    }
+
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL: {
+        char *ctldev = g_strdup_printf("/dev/cam/ctl%u.%u",
+                                       ctlsrc->pp, ctlsrc->vp);
+
+        if (!ctldev)
+            return -1;
+
+        ret = virSecurityDACSetHostdevLabelHelper(ctldev, true, &cbdata);
+
+        VIR_FREE(ctldev);
         break;
     }
 
@@ -1393,6 +1407,7 @@ virSecurityDACRestoreHostdevLabel(virSecurityManagerPtr mgr,
     virDomainHostdevSubsysUSBPtr usbsrc = &dev->source.subsys.u.usb;
     virDomainHostdevSubsysPCIPtr pcisrc = &dev->source.subsys.u.pci;
     virDomainHostdevSubsysSCSIPtr scsisrc = &dev->source.subsys.u.scsi;
+    virDomainHostdevSubsysSCSICTLPtr ctlsrc = &dev->source.subsys.u.scsi_ctl;
     virDomainHostdevSubsysSCSIVHostPtr hostsrc = &dev->source.subsys.u.scsi_host;
     virDomainHostdevSubsysMediatedDevPtr mdevsrc = &dev->source.subsys.u.mdev;
     int ret = -1;
@@ -1463,6 +1478,19 @@ virSecurityDACRestoreHostdevLabel(virSecurityManagerPtr mgr,
             return -1;
 
         ret = virSCSIDeviceFileIterate(scsi, virSecurityDACRestoreSCSILabel, mgr);
+        break;
+    }
+
+    case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_CTL: {
+        char *ctldev = g_strdup_printf("/dev/cam/ctl%u.%u",
+                                       ctlsrc->pp, ctlsrc->vp);
+
+        if (!ctldev)
+            return -1;
+
+        ret = virSecurityDACRestoreFileLabel(mgr, ctldev);
+
+        VIR_FREE(ctldev);
         break;
     }
 

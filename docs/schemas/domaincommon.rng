@@ -5113,6 +5113,7 @@
       </attribute>
     </optional>
     <choice>
+      <ref name="hostdevsubsysctl"/>
       <ref name="hostdevsubsyspci"/>
       <ref name="hostdevsubsysusb"/>
       <ref name="hostdevsubsysscsi"/>
@@ -5138,6 +5139,34 @@
     </choice>
   </define>
 
+
+  <define name="hostdevsubsysctl">
+    <attribute name="type">
+      <value>scsi_ctl</value>
+    </attribute>
+    <optional>
+      <attribute name="model">
+        <choice>
+          <value>virtio</value>
+        </choice>
+      </attribute>
+    </optional>
+    <element name="source">
+      <choice>
+        <group>
+          <attribute name="protocol">
+            <value>ioctl</value>     <!-- ioctl, required -->
+          </attribute>
+          <attribute name="pp">
+            <data type="unsignedInt"/>
+          </attribute>
+          <attribute name="vp">
+            <data type="unsignedInt"/>
+          </attribute>
+        </group>
+      </choice>
+    </element>
+  </define>
 
   <define name="hostdevsubsyspci">
     <attribute name="type">

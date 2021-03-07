@@ -180,6 +180,9 @@ typedef virDomainHostdevSubsysPCI *virDomainHostdevSubsysPCIPtr;
 typedef struct _virDomainHostdevSubsysSCSI virDomainHostdevSubsysSCSI;
 typedef virDomainHostdevSubsysSCSI *virDomainHostdevSubsysSCSIPtr;
 
+typedef struct _virDomainHostdevSubsysSCSICTL virDomainHostdevSubsysSCSICTL;
+typedef virDomainHostdevSubsysSCSICTL *virDomainHostdevSubsysSCSICTLPtr;
+
 typedef struct _virDomainHostdevSubsysSCSIHost virDomainHostdevSubsysSCSIHost;
 typedef virDomainHostdevSubsysSCSIHost *virDomainHostdevSubsysSCSIHostPtr;
 
